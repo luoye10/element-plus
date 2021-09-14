@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 import helper from 'components-helper'
 import path from 'path'
 import { epRoot } from './paths'
 
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const { name, version } = require(path.resolve(epRoot, './package.json'))
 
 import icon from '../website/icon.json'

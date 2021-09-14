@@ -8,7 +8,6 @@ import { compRoot } from './paths'
 export const getDeps = (pkgPath: string): string[] => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const pkgJson = require(pkgPath)
-
   const { dependencies } = pkgJson
   return Object.keys(dependencies)
 }
@@ -32,6 +31,10 @@ export const getExternals = (options: { full: boolean }) => (id: string) => {
 }
 
 export function yellow(str: string) {
+  console.log(chalk.yellow(str))
+}
+
+export function cyan(str: string) {
   console.log(chalk.cyan(str))
 }
 
@@ -43,7 +46,7 @@ export function red(str: string) {
   console.error(chalk.red(str))
 }
 
-export function errorAndExit(e: Error) {
+export function errorAndExit(e: Error): never {
   red(e.message)
   process.exit(1)
 }

@@ -1,10 +1,10 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
-'use strict'
-
-import fs from 'fs'
+import path from 'path'
+import { readFile } from 'fs/promises'
 import algoliasearch from 'algoliasearch'
 import { slugify } from 'transliteration'
-import fg from 'fast-glob'
+import { sync as globSync } from 'fast-glob'
+import { projRoot } from './paths'
+import { errorAndExit } from './utils'
 
 interface Index {
   component: string
@@ -15,7 +15,8 @@ interface Index {
   path: string
 }
 
-const algoliaKey = process.env.ALGOLIA_KEY!
+const algoliaKey = process.env.ALGOLIA_KEY
+if (!algoliaKey) errorAndExit(new Error('no algoliaKey'))
 
 const client = algoliasearch('7DCTSU0WBW', algoliaKey)
 const langs = {
@@ -25,54 +26,60 @@ const langs = {
   'fr-FR': 'element-fr',
   jp: 'element-jp',
 }
-;['zh-CN', 'en-US', 'es', 'fr-FR', 'jp'].forEach((lang) => {
-  const indexName = langs[lang]
-  const index = client.initIndex(indexName)
-  index.clearObjects().then(() => {
-    const files = fg.sync(`website/docs/${lang}/*.md`)
-    let indices: Index[] = []
-    files.forEach((file) => {
-      const regExp = new RegExp(`website\/docs\/${lang}\/(.*).md`)
-      const pathContent = file.match(regExp)!
-      const path = pathContent[1]
-      const index = path.lastIndexOf('/')
-      const names = index !== -1 ? path.split('/') : []
-      const component = names.length ? names[names.length - 1] : path
-      const content = fs.readFileSync(file, 'utf8')
-      const matches = content
-        .replace(/:::[\s\S]*?:::/g, '')
-        .replace(/```[\s\S]*?```/g, '')
-        .match(/#{2,4}[^#]*/g)!
-        .map((match) =>
-          match
-            .replace(/\n+/g, '\n')
-            .split('\n')
-            .filter((part) => !!part)
-        )
-        .map((match) => {
-          const length = match.length
-          if (length > 2) {
-            const desc = match.slice(1, length).join('')
-            return [match[0], desc]
-          }
-          return match
-        })
-      let i = 0
-      indices = indices.concat(
-        matches.map((match) => {
-          const title = match[0].replace(/#{2,4}/, '').trim()
-          const index = { component, title } as Index
-          index.anchor = slugify(title)
-          index.content = (match[1] || title).replace(/<[^>]+>/g, '')
-          index.path = path
-          index.sort = i++
-          return index
-        })
-      )
-    })
 
-    index.saveObjects(indices, {
-      autoGenerateObjectIDIfNotExist: true,
+Object.entries(langs).forEach(async ([lang, indexName]) => {
+  const index = client.initIndex(indexName)
+  await index.clearObjects()
+
+  const docsRoot = path.resolve(projRoot, 'website/docs', lang)
+  const files = globSync('*.md', {
+    cwd: docsRoot,
+    absolute: true,
+  })
+
+  const generateIndex = async (file: string) => {
+    const content = await readFile(file, 'utf8')
+    const matches = content
+      .replace(/:::[\s\S]*?:::/g, '')
+      .replace(/```[\s\S]*?```/g, '')
+      .match(/#{2,4}[^#]*/g)!
+      .map((match) =>
+        match
+          .replace(/\n+/g, '\n')
+          .split('\n')
+          .filter((part) => !!part)
+      )
+      .map((match) => {
+        const length = match.length
+        if (length > 2) {
+          const desc = match.slice(1, length).join('')
+          return [match[0], desc]
+        }
+        return match
+      })
+
+    const name = path.parse(file).name // markdown name (without extension)
+    const filename = path.basename(file) // markdown filename (with extension)
+
+    let i = 0
+    return matches.map((match) => {
+      const title = match[0].replace(/#{2,4}/, '').trim()
+      const index: Index = {
+        component: name,
+        title,
+        anchor: slugify(title),
+        content: (match[1] || title).replace(/<[^>]+>/g, ''),
+        path: filename,
+        sort: i++,
+      }
+      return index
     })
+  }
+  const indices: Index[] = (
+    await Promise.all(files.map(async (file) => generateIndex(file)))
+  ).flat(1)
+
+  await index.saveObjects(indices, {
+    autoGenerateObjectIDIfNotExist: true,
   })
 })

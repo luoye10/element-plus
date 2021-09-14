@@ -1,32 +1,26 @@
-import chalk from 'chalk'
 import path from 'path'
 import fs from 'fs'
 import { epRoot } from './paths'
+import { cyan, red, yellow, green } from './utils'
 
 const tagVersion = process.env.TAG_VERSION
 const gitHead = process.env.GIT_HEAD
 if (!tagVersion || !gitHead) {
-  console.log(
-    chalk.red(
-      'No tag version or git head were found, make sure that you set the environment variable $TAG_VERSION \n'
-    )
+  red(
+    'No tag version or git head were found, make sure that you set the environment variable $TAG_VERSION \n'
   )
   process.exit(1)
 }
 
-console.log(chalk.cyan('Start updating version'))
+cyan('Start updating version')
 
-console.log(
-  chalk.cyan(
-    ['NOTICE:', `$TAG_VERSION: ${tagVersion}`, `$GIT_HEAD: ${gitHead}`].join(
-      '\n'
-    )
-  )
+cyan(
+  ['NOTICE:', `$TAG_VERSION: ${tagVersion}`, `$GIT_HEAD: ${gitHead}`].join('\n')
 )
 ;(async () => {
-  console.log(chalk.yellow(`Updating package.json for element-plus`))
+  yellow(`Updating package.json for element-plus`)
 
-  const pkgJson = path.resolve(epRoot, './package.json')
+  const pkgJson = path.resolve(epRoot, 'package.json')
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const json = require(pkgJson)
 
@@ -45,7 +39,7 @@ console.log(
     console.log(json)
   }
 
-  console.log(chalk.green(`Version updated to ${tagVersion}`))
+  green(`Version updated to ${tagVersion}`)
 
-  console.log(chalk.green(`Git head updated to ${gitHead}`))
+  green(`Git head updated to ${gitHead}`)
 })()
